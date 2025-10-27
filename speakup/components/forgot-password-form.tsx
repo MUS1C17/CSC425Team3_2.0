@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,80 +19,88 @@ export function ForgotPasswordForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordReset = async (event: React.FormEvent) => {
+    event.preventDefault();
     const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
+    setSubmitting(true);
+    setStatusMsg(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });
       if (error) throw error;
-      setSuccess(true);
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setSent(true);
+    } catch (err: unknown) {
+      setStatusMsg(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {success ? (
+      {sent ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
-            <CardDescription>Password reset instructions sent</CardDescription>
+            <CardTitle className="text-2xl">Email Sent</CardTitle>
+            <CardDescription>Check your inbox for further steps</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive
-              a password reset email.
+              If your email is registered, you’ll receive a message with
+              instructions to reset your password shortly.
             </p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="text-2xl">Forgot Password?</CardTitle>
             <CardDescription>
-              Type in your email and we&apos;ll send you a link to reset your
-              password
+              Enter your email below and we’ll send you a password reset link.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleForgotPassword}>
+            <form onSubmit={handlePasswordReset}>
               <div className="flex flex-col gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email address</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder="you@example.com"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send reset email"}
+
+                {statusMsg && <p className="text-sm text-red-500">{statusMsg}</p>}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={submitting}
+                >
+                  {submitting ? "Sending reset link..." : "Send Reset Link"}
                 </Button>
               </div>
+
               <div className="mt-4 text-center text-sm">
-                Already have an account?{" "}
+                Remember your password?{" "}
                 <Link
                   href="/auth/login"
-                  className="underline underline-offset-4"
+                  className="underline underline-offset-4 hover:text-primary"
                 >
-                  Login
+                  Go back to login
                 </Link>
               </div>
             </form>

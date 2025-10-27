@@ -17,57 +17,66 @@ import { useState } from "react";
 
 export function UpdatePasswordForm({
   className,
-  ...props
+  ...rest
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
+    setSubmitting(true);
+    setFeedback(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
       router.push("/protected");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+    } catch (err: unknown) {
+      setFeedback(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className={cn("flex flex-col gap-6", className)} {...rest}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+          <CardTitle className="text-2xl font-semibold">
+            Update Password
+          </CardTitle>
           <CardDescription>
-            Please enter your new password below.
+            Enter your new password below to finish resetting your account.
           </CardDescription>
         </CardHeader>
+
         <CardContent>
-          <form onSubmit={handleForgotPassword}>
+          <form onSubmit={onSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="password">New password</Label>
+                <Label htmlFor="password">New Password</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="New password"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save new password"}
+
+              {feedback && <p className="text-sm text-red-500">{feedback}</p>}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={submitting}
+              >
+                {submitting ? "Updating..." : "Confirm Password Change"}
               </Button>
             </div>
           </form>

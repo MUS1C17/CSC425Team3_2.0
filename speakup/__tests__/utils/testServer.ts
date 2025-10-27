@@ -1,76 +1,91 @@
-import http from 'node:http'
-import { URL } from 'node:url'
+import http from "node:http";
+import { URL } from "node:url";
 
-//import route handlers from Next.js app router
-import { POST as loginHandler } from '@/app/api/auth/login/route'
-import { POST as signupHandler } from '@/app/api/auth/signup/route'
-import { POST as logoutHandler } from '@/app/api/auth/logout/route'
+// Bring in the route handlers from the Next.js API
+import { POST as loginRoute } from "@/app/api/auth/login/route";
+import { POST as signupRoute } from "@/app/api/auth/signup/route";
+import { POST as logoutRoute } from "@/app/api/auth/logout/route";
 
-type Handler = (req: Request) => Promise<Response>
+type RouteHandler = (req: Request) => Promise<Response>;
 
-function toWebRequest(req: http.IncomingMessage, body: Buffer): Request {
-  const origin = 'http://localhost'
-  const url = new URL(req.url || '/', origin)
-  const headers = new Headers()
-  for (const [key, value] of Object.entries(req.headers)) {
+const routeTable: Record<string, Record<string, RouteHandler>> = {
+  "/api/auth/login": { POST: loginRoute },
+  "/api/auth/signup": { POST: signupRoute },
+  "/api/auth/logout": { POST: logoutRoute },
+};
+
+/**
+ * Converts a Node.js request into a Web Fetch API Request.
+ */
+function toFetchRequest(nodeReq: http.IncomingMessage, buffer: Buffer): Request {
+  const base = "http://localhost";
+  const requestUrl = new URL(nodeReq.url || "/", base);
+  const headers = new Headers();
+
+  for (const [header, value] of Object.entries(nodeReq.headers)) {
     if (Array.isArray(value)) {
-      for (const v of value) headers.append(key, v)
-    } else if (typeof value === 'string') {
-      headers.set(key, value)
+      value.forEach((v) => headers.append(header, v));
+    } else if (typeof value === "string") {
+      headers.set(header, value);
     }
   }
-  return new Request(url.toString(), {
-    method: req.method,
+
+  return new Request(requestUrl.toString(), {
+    method: nodeReq.method,
     headers,
-    body: body.length ? new Uint8Array(body) : undefined,
-  })
+    body: buffer.length ? new Uint8Array(buffer) : undefined,
+  });
 }
 
-function writeWebResponse(res: http.ServerResponse, response: Response) {
-  res.statusCode = response.status
-  for (const [key, value] of response.headers) {
-    //set-cookie may appear multiple times
-    if (key.toLowerCase() === 'set-cookie') {
-      const cookies = response.headers.getSetCookie()
-      if (cookies.length) res.setHeader('set-cookie', cookies)
+/**
+ * Writes a Web Fetch API Response back to the Node.js HTTP response.
+ */
+async function sendFetchResponse(res: http.ServerResponse, response: Response) {
+  res.statusCode = response.status;
+
+  for (const [header, value] of response.headers) {
+    if (header.toLowerCase() === "set-cookie") {
+      const cookies = response.headers.getSetCookie?.();
+      if (cookies?.length) res.setHeader("set-cookie", cookies);
     } else {
-      res.setHeader(key, value)
+      res.setHeader(header, value);
     }
   }
-  response.arrayBuffer().then((buf) => {
-    res.end(Buffer.from(buf))
-  })
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  res.end(buffer);
 }
 
-const routes: Record<string, Record<string, Handler>> = {
-  '/api/auth/login': { POST: loginHandler },
-  '/api/auth/signup': { POST: signupHandler },
-  '/api/auth/logout': { POST: logoutHandler },
-}
-
+/**
+ * Creates a simple HTTP server that can mimic the Next.js API route layer.
+ */
 export function createTestServer() {
   const server = http.createServer(async (req, res) => {
     try {
-      const chunks: Buffer[] = []
-      req.on('data', (c) => chunks.push(Buffer.from(c)))
-      req.on('end', async () => {
-        const body = Buffer.concat(chunks)
-        const url = (req.url || '').split('?')[0]
-        const method = (req.method || 'GET').toUpperCase()
-        const handler = routes[url]?.[method]
+      const bodyChunks: Buffer[] = [];
+
+      req.on("data", (chunk) => bodyChunks.push(Buffer.from(chunk)));
+      req.on("end", async () => {
+        const body = Buffer.concat(bodyChunks);
+        const path = (req.url || "").split("?")[0];
+        const method = (req.method || "GET").toUpperCase();
+
+        const handler = routeTable[path]?.[method];
         if (!handler) {
-          res.statusCode = 404
-          res.end('Not Found')
-          return
+          res.statusCode = 404;
+          res.end("Not Found");
+          return;
         }
-        const webReq = toWebRequest(req, body)
-        const webRes = await handler(webReq)
-        writeWebResponse(res, webRes)
-      })
-    } catch (err) {
-      res.statusCode = 500
-      res.end('Internal Server Error')
+
+        const fetchRequest = toFetchRequest(req, body);
+        const fetchResponse = await handler(fetchRequest);
+        await sendFetchResponse(res, fetchResponse);
+      });
+    } catch (error) {
+      res.statusCode = 500;
+      res.end("Internal Server Error");
     }
-  })
-  return server
+  });
+
+  return server;
 }

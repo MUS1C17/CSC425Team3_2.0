@@ -40,10 +40,11 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  //redirecting to login
+
   if (
     request.nextUrl.pathname !== "/" &&
     !user &&

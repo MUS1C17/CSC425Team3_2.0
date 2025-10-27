@@ -22,7 +22,6 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/appdb
     ports:
       - "3000:3000"
-    #Mount env file for local dev overrides if present
     env_file:
       - ./speakup/.env.local
 
