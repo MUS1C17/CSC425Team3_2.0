@@ -1,0 +1,30 @@
+ 
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: ./speakup
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/appdb
+    ports:
+      - "3000:3000"
+    #Mount env file for local dev overrides if present
+    env_file:
+      - ./speakup/.env.local
+
+volumes:
+  db_data:
