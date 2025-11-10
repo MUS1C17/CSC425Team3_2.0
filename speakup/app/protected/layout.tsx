@@ -1,11 +1,13 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+
 import { ReactNode } from "react";
-import { hasEnvVars } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { EnvVarWarning } from "@/components/env-var-warning";
+import { hasEnvVars } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,19 +16,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import { User as UserIcon } from "lucide-react";
 
-export default async function ProtectedLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  //optional avatar
+  //avatar
   let avatarUrl: string | null = null;
   let fullName: string | null = null;
 
@@ -38,7 +37,7 @@ export default async function ProtectedLayout({
       .maybeSingle();
 
     if (profileError) {
-      console.log("ERROR OCCURED: " + profileError.message)
+      console.log("ERROR OCCURED: " + profileError.message);
     }
 
     if (profile) {
@@ -47,7 +46,7 @@ export default async function ProtectedLayout({
     }
   }
 
-  //server sign-out
+  //sign-out
   async function signOutAction(_formData: FormData): Promise<void> {
     "use server";
     const server = await createClient();
