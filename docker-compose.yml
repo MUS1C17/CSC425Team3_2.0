@@ -1,21 +1,30 @@
-version: "3.8"
+ 
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-    depends_on: []
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_PASSWORD: example
-      POSTGRES_USER: example
-      POSTGRES_DB: example
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    ports:
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: ./speakup
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/appdb
+    ports:
+      - "3000:3000"
+    #Mount env file for local dev overrides if present
+    env_file:
+      - ./speakup/.env.local
+
 volumes:
-  pgdata:
+  db_data:
