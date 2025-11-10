@@ -103,7 +103,7 @@ export default async function ProtectedLayout({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
-                  <Link href="/account">Profile</Link>
+                  <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
 
                 {/* fully clickable Change Theme row */}

@@ -90,7 +90,7 @@ export default function SessionsPage() {
                 <DropdownMenuLabel>{fullName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/account">Profile</Link>
+                  <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <ThemeSwitcher asChild className="px-2 py-2">

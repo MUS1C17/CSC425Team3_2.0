@@ -1,6 +1,6 @@
 describe('Testing login form', () => {
     beforeEach(() => {
-        cy.visit('localhost:3001/auth/login', {timeout: 6000});
+        cy.visit('localhost:3000/auth/login', {timeout: 6000});
 });
 
      it('Tests login with valid credentials', () => {
@@ -8,7 +8,7 @@ describe('Testing login form', () => {
         cy.get('[data-cy="emailInput"]').type('automation@example.com', {force: true});
         cy.get('[data-cy="passwordInput"]').type('automation', {force: true});
         cy.get('[data-cy="loginButton"]').click({force: true});
-        cy.url().should('eq', 'http://localhost:3001/protected', {timeout: 10000});
+        cy.url().should('eq', 'http://localhost:3000/protected', {timeout: 10000});
 
         cy.log('Create new group');
         cy.get('[data-cy="createGroupButton"]').click({force: true});
