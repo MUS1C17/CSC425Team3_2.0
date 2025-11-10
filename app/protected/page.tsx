@@ -32,10 +32,12 @@ export default async function Dashboard() {
   ]).catch(() => [{ data: [] }, { data: [] }, { data: [] }]) as any;
 
   const {data: { user }, } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-  const profileResp = await supabase.from("users").select("first_name").eq("id", user.id).maybeSingle();
-  const profile = (profileResp.data ?? null) as { first_name?: string | null } | null;
-  const firstName = profile?.first_name ?? "there";
+  let firstName = "there";
+  if (user) {
+    const profileResp = await supabase.from("users").select("first_name").eq("id", user.id).maybeSingle();
+    const profile = (profileResp.data ?? null) as { first_name?: string | null } | null;
+    firstName = profile?.first_name ?? "there";
+  }
 
   return (
     <div className="flex flex-col gap-10">
@@ -54,7 +56,7 @@ export default async function Dashboard() {
             <Button variant="outline">Join Group</Button>
           </Link>
           <Link href="/groups/new">
-            <Button>Create Group</Button>
+            <Button data-cy="createGroupButton">Create Group</Button>
           </Link>
         </div>
       </div>

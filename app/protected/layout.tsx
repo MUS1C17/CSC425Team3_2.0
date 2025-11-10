@@ -41,9 +41,7 @@ export default async function ProtectedLayout({
       console.log("ERROR OCCURED: " + profileResp.error.message);
     }
 
-    const profile = (profileResp.data ?? null) as
-      | { avatar_path?: string | null; first_name?: string | null; last_name?: string | null }
-      | null;
+    const profile = (profileResp.data ?? null) as { avatar_path?: string | null; first_name?: string | null; last_name?: string | null } | null;
 
     if (profile) {
       avatarUrl = profile.avatar_path ?? null;
