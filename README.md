@@ -2,79 +2,113 @@
 
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+- Next.js App Router (server + client components, API route handlers, middleware)
+- Supabase Auth with cookie sessions via `@supabase/ssr`
+- Tailwind CSS + shadcn/ui components
+- Jest + Supertest unit/API tests, Cypress E2E tests
+- GitHub Actions CI (lint + unit; optional Cypress)
 
-## Clone and run locally
+## Getting Started
 
-1. Navigate to `.env.local` and update the following:
+1) Create `speakup/.env.local` with:
 
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=[INSERT SUPABASE PUBLISHABLE (ANON) KEY]
-   ```
+```
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your_publishable_key
+```
 
-   Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true). This project reads `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`; if you're used to `NEXT_PUBLIC_SUPABASE_ANON_KEY`, set the publishable key variable instead.
+2) Install and run the dev server:
 
-5. You can now run the Next.js local development server:
+```
+cd speakup
+npm install
+npm run dev
+```
 
-   ```bash
-   npm run dev
-   ```
-
-   Should now be running on [localhost:3000](http://localhost:3000/).
-
-6. Shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
-
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+App runs at http://localhost:3000.
 
 ## Authentication Flow
 
-See `speakup/docs/auth-flow.md` for a diagram and description of:
+See `speakup/docs/auth-flow.md` for the full flow (password + Google OAuth), middleware protection, and reset/update password.
 
-- Sign-up and login with Supabase (password hashing + storage)
-- Session cookies and SSR access via `@supabase/ssr`
-- Middleware route protection and redirects
-- Password reset and update flow
-- Required environment variables
+## Testing
 
-## Testing (Story 1.7)
+- Unit/API tests: `cd speakup && npm test`
+- What's covered:
+  - Auth route handlers (signup, login, logout)
+  - Protected dashboard (claims/redirect behavior)
+- Cypress locally: `cd speakup && npx cypress open` (start `npm run dev` first)
 
-- Install deps in `speakup`: `cd speakup && npm install`
-- Run tests: `npm test`
-- What’s covered:
-  - `POST /api/auth/signup` success and duplicate user
-  - `POST /api/auth/login` valid and invalid credentials
-  - `POST /api/auth/logout` success
+## Docker (optional)
 
-Notes:
-- Tests mock the Supabase server client so they run offline and fast.
-- Handlers are exercised over HTTP via Supertest using a lightweight test server adapter.
+From repo root: `docker-compose up --build`. Health endpoint: `http://localhost:3000/api/db/health`.
 
-## Docker Compose (Story 1.8)
+## Functional Requirements -- Where Implemented
 
-- Prerequisites: Docker + Docker Compose installed.
-- From repo root, start everything: `docker-compose up --build`
-- Services:
-  - `db`: Postgres 15 on `http://localhost:3000/api/db/health` (user/password: `postgres`)
-  - `web`: Next.js app on `http://localhost:3000`
-- Environment:
-  - The `web` service reads `speakup/.env.local` for Supabase envs.
-  - Database URL is prewired as `DATABASE_URL=postgres://postgres:postgres@db:5432/appdb`.
+- Original: Technical Mastery: React Architecture
+  - Dev server: Next.js App Router with `npm run dev` (Vite not used; equivalent dev experience and architecture).
+  - Organized folders: `app`, `components`, `lib`, `__tests__`, `cypress`, `docs`.
+  - Pages/components complete for auth, dashboard, groups, sessions, and Q&A.
 
-Verify DB connectivity:
-- Visit `http://localhost:3000/api/db/health` to see `{ ok: true }` when the app reaches the DB.
+- Functional login, dashboard, use cases
+  - Login/Signup/Forgot/Update: `app/auth/*` with forms in `components/*-form.tsx`.
+  - Dashboard: `app/protected/page.tsx` shows groups/sessions widgets.
+  - CRUD flows: create/join group, create/join session, ask/answer question using Supabase DB.
+  - State/UI kept in sync via React state and server responses.
 
-Using Supabase locally (optional):
-- This project uses Supabase Auth. For a fully local stack, use the Supabase CLI (`supabase start`) which launches the Supabase services via Docker. Then point `NEXT_PUBLIC_SUPABASE_URL` and the publishable key to your local Supabase instance.
+- API calls and error handling
+  - Uses native `fetch` and Supabase client (not Axios) for fetch/post/update/delete.
+  - All forms handle errors and show success via toasts.
+
+- State management
+  - `useState` across forms and UI widgets; session handled by Supabase cookies accessible server-side.
+  - Context: global toast provider in `components/system/toast.tsx`.
+
+- Protected routes
+  - Middleware at `speakup/middleware.ts` + `lib/supabase/middleware.ts` enforces login.
+  - Server components call `getClaims()` and redirect unauthenticated users.
+
+- 2.1 Form posts to backend; success shows in dashboard
+  - Examples: `components/create-group-form.tsx`, `components/create-session-form.tsx`; new items appear on the protected dashboard.
+
+- 2.2 CRUD endpoints implemented, linked to DB
+  - REST handlers in `app/api/{groups,sessions,questions,answers}/route.ts` connect to Supabase Postgres.
+
+- 2.3 Table includes title, description, user_id, target_date
+  - Analog fields present:
+    - Questions: `title`, optional `description`, `session_id` (ownership link), `created_at`.
+    - Sessions: `name` (title), `description`, `group_id`/creator, `start_time`/`end_time` (target dates).
+
+- 2.4 Cards render with title, description and status
+  - Cards/widgets show groups, sessions, and questions. Question status via `is_answered` is displayed and used for progress.
+
+- 2.5 CRUD for /challenges linked to goals
+  - Mapping: questions ↔ challenges; sessions ↔ goals.
+  - Questions are scoped to sessions with full create/list/update/delete in API + UI.
+
+- 2.6 Progress bar dynamically updates
+  - `components/progress-overview.tsx` computes answered vs total per session and updates as answers are posted.
+
+- 2.7 Unit & E2E tests from login -> create goal -> add challenge -> mark complete
+  - Mapping: login -> create group/session -> ask question -> answer question.
+  - Unit/API tests: `__tests__/*` cover auth and protected dashboard behavior.
+  - E2E: `cypress/e2e/*` covers login and group creation; extend with session/question flows as needed.
+
+- 2.8 Tests run automatically (CI)
+  - GitHub Actions at `.github/workflows/ci.yml` runs lint + unit on push/PR.
+  - Optional Cypress job gated by repo variable `RUN_E2E=1` with Supabase secrets.
+
+## UI/UX Enhancements
+
+- Success toasts for all form/DB interactions (`speakup/components/system/toast.tsx`).
+- Refreshed visual design and stacked/diagonal card layouts.
+
+## CI (GitHub Actions)
+
+Workflow at `.github/workflows/ci.yml`:
+- Lint + unit tests run on every push/PR.
+- Optional Cypress job gated by repo variable `RUN_E2E=1`.
+- To enable E2E in CI, add repository secrets:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
+

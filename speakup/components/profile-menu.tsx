@@ -75,7 +75,7 @@ export default async function ProfileMenu() {
 
                 <div className="p-2 flex flex-col">
                     <Link
-                        href="/account"
+                        href="/profile"
                         className="px-3 py-2 rounded hover:bg-muted text-sm"
                     >
                         Profile

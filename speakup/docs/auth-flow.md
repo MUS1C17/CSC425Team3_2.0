@@ -43,39 +43,49 @@ Notes:
 - The code reads `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` (ensure this is set). Some docs/tools refer to `NEXT_PUBLIC_SUPABASE_ANON_KEY`; either value can be used as long as the one referenced in code is present.
 - Do not commit `.env.local` (already in `.gitignore`).
 
-## Registration Flow
+## Registration (Email + Password)
 1. User completes the form in `components/sign-up-form.tsx`.
 2. Client calls `supabase.auth.signUp({ email, password, options: { emailRedirectTo } })`.
 3. Supabase Auth securely hashes the password and stores the user record.
 4. Supabase emails a confirmation link (OTP). The link targets `app/auth/confirm/route.ts` with `token_hash`, `type`, and an optional `next` path.
 5. `GET /auth/confirm` verifies the OTP via `supabase.auth.verifyOtp`. On success, it redirects to `next` (configured to `/protected`).
 
-ASCII sequence (simplified):
+Sequence (simplified):
 
 ```
-User → SignUp form → supabase.auth.signUp → Supabase Auth (hash + store)
-     ← Email link
-Browser → GET /auth/confirm?token_hash&type&next=/protected
-          → verifyOtp (server) → 302 → /protected
+User -> SignUp form -> supabase.auth.signUp -> Supabase Auth (hash + store)
+      -> Email link
+Browser -> GET /auth/confirm?token_hash&type&next=/protected
+        -> verifyOtp (server) -> 302 -> /protected
 ```
 
-## Login Flow
+## Login (Email + Password)
 1. User completes the form in `components/login-form.tsx`.
 2. Client calls `supabase.auth.signInWithPassword({ email, password })`.
 3. On success, Supabase sets session cookies. The app navigates to `/protected`.
 
 ```
-User → Login form → supabase.auth.signInWithPassword
-     ← Set session cookies
-     → /protected
+User -> Login form -> supabase.auth.signInWithPassword
+     -> Set session cookies
+     -> /protected
 ```
+
+## Login with Google (OAuth)
+1. User clicks Continue with Google in `components/login-form.tsx`.
+2. Client calls `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: <site>/auth/callback } })`.
+3. After Google consent, Supabase redirects back to `app/auth/callback/route.ts` with a `code`.
+4. Server exchanges the code via `supabase.auth.exchangeCodeForSession(code)` and issues cookies.
+5. User is redirected to `/protected` (or `next` if provided).
+
+Setup notes:
+- In Supabase Dashboard, enable Google provider and set the site URL and redirect URL to `<site>/auth/callback`.
 
 ## Session Handling
 - `@supabase/ssr` is used in `lib/supabase/server.ts` and `lib/supabase/middleware.ts` to read/set cookies correctly in SSR and Middleware contexts.
 - `supabase.auth.getClaims()` returns the current user claims when the session is valid. Missing or invalid claims indicate no active session.
 
 ## Route Protection
-- Middleware (`middleware.ts` → `lib/supabase/middleware.ts`):
+- Middleware (`middleware.ts` + `lib/supabase/middleware.ts`):
   - Builds a server client and calls `supabase.auth.getClaims()`.
   - If the request path is not publicly allowed and no user claims are present, it redirects to `/auth/login`.
   - The matcher in `middleware.ts` excludes static assets and images.
@@ -101,3 +111,4 @@ User → Login form → supabase.auth.signInWithPassword
 - Login verifies hashed password and maintains a session (no JWT required): Satisfied via Supabase session cookies.
 - Middleware restricts protected routes: Satisfied via `middleware.ts` using Supabase claims.
 - Uses `.env` for secure connection and persists user data: Satisfied with Supabase env vars.
+

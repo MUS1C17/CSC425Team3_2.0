@@ -3,28 +3,23 @@
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/system/toast";
 
-export function SignUpForm({
-  className,
-  ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [repeatPassword, setRepeatPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
   const router = useRouter();
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -33,7 +28,7 @@ export function SignUpForm({
     setIsLoading(true);
     setError(null);
 
-    if (password !== repeatPassword) {
+    if (password !== confirmPassword) {
       setError("Passwords do not match");
       setIsLoading(false);
       return;
@@ -45,12 +40,18 @@ export function SignUpForm({
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/protected`,
+          data: {
+            first_name: firstName?.trim() || null,
+            last_name: lastName?.trim() || null,
+          },
         },
       });
       if (error) throw error;
+      toast({ variant: "success", title: "Account created", description: "Check your email to confirm." });
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
+      console.log(error);
     } finally {
       setIsLoading(false);
     }
@@ -60,12 +61,34 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardTitle className="text-2xl">Create your account</CardTitle>
+          <CardDescription>Join SpeakUp and start learning out loud.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="first-name">First name</Label>
+                <Input
+                  id="first-name"
+                  type="text"
+                  placeholder="John"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="last-name">Last name</Label>
+                <Input
+                  id="last-name"
+                  type="text"
+                  placeholder="Doe"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -91,26 +114,23 @@ export function SignUpForm({
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="repeat-password">Repeat Password</Label>
+                  <Label htmlFor="confirm-password">Confirm password</Label>
                 </div>
                 <Input
-                  id="repeat-password"
+                  id="confirm-password"
                   type="password"
                   required
-                  value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating an account..." : "Sign up"}
+                {isLoading ? "Creating your account..." : "Create account"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
-              <Link href="/auth/login" className="underline underline-offset-4">
-                Login
-              </Link>
+              Already have an account? <Link href="/auth/login" className="underline underline-offset-4">Sign in</Link>
             </div>
           </form>
         </CardContent>

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useState } from "react";
+import { useToast } from "@/components/system/toast";
 
 export function ForgotPasswordForm({
   className,
@@ -23,6 +24,7 @@ export function ForgotPasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +38,7 @@ export function ForgotPasswordForm({
       });
       if (error) throw error;
       setSuccess(true);
+      toast({ variant: "success", title: "Reset email sent", description: "Check your inbox." });
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

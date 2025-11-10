@@ -26,22 +26,24 @@ jest.mock('@/lib/supabase/server', () => {
         })),
       },
       from: jest.fn((table: string) => {
-        //Chain helper for list queries (select -> order -> limit -> Promise)
-        const listChain = {
-          order: jest.fn(() => ({
-            limit: jest.fn(async () => {
-              const map: Record<string, any[]> = {
-                groups: mockState.groups,
-                sessions: mockState.sessions,
-                questions: mockState.questions,
-              }
-              return { data: map[table] ?? [], error: null }
-            }),
-          })),
+        //Generic dataset per table used by the dashboard page
+        const map: Record<string, any[]> = {
+          groups: mockState.groups,
+          sessions: mockState.sessions,
+          questions: mockState.questions,
         }
 
-        //Chain helper for single row query (users table)
-        const singleChain = {
+        //Chain used for list queries: select -> eq -> is -> order -> limit
+        const listResult = async () => ({ data: map[table] ?? [], error: null })
+        const listChain: any = {
+          eq: jest.fn(() => listChain),
+          is: jest.fn(() => listChain),
+          order: jest.fn(() => listChain),
+          limit: jest.fn(listResult),
+        }
+
+        //Chain used for single-row query on users: select -> eq -> maybeSingle
+        const singleChain: any = {
           eq: jest.fn(() => ({
             maybeSingle: jest.fn(async () => ({
               data: table === 'users' ? { first_name: mockState.firstName } : null,
@@ -51,10 +53,15 @@ jest.mock('@/lib/supabase/server', () => {
         }
 
         return {
-          select: jest.fn(() => ({
-            ...listChain,
-            ...singleChain,
-          })),
+          select: jest.fn(() => (
+            table === 'users'
+              ? singleChain
+              : (() => {
+                  const chain: any = { ...listChain };
+                  (chain as any)['in'] = jest.fn(listResult);
+                  return chain;
+                })()
+          )),
         }
       }),
     }
@@ -117,3 +124,8 @@ describe('Protected Dashboard page', () => {
     expect(html).toContain('Jordan')
   })
 })
+
+
+
+
+

@@ -1,0 +1,8 @@
+.next
+node_modules
+dist
+coverage
+*.log
+cypress/videos
+cypress/screenshots
+tmp

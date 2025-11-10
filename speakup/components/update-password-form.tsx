@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/system/toast";
 
 export function UpdatePasswordForm({
   className,
@@ -23,6 +24,7 @@ export function UpdatePasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const toast = useToast();
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +35,7 @@ export function UpdatePasswordForm({
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-
+      toast({ variant: "success", title: "Password updated" });
       router.push("/protected");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");

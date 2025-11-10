@@ -1,11 +1,14 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+
 import { ReactNode } from "react";
-import { hasEnvVars } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { EnvVarWarning } from "@/components/env-var-warning";
+import { hasEnvVars } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import ProgressOverview from "@/components/progress-overview";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,19 +17,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import { User as UserIcon } from "lucide-react";
 
-export default async function ProtectedLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  //optional avatar
+  //avatar
   let avatarUrl: string | null = null;
   let fullName: string | null = null;
 
@@ -38,7 +38,7 @@ export default async function ProtectedLayout({
       .maybeSingle();
 
     if (profileError) {
-      console.log("ERROR OCCURED: " + profileError.message)
+      console.log("ERROR OCCURED: " + profileError.message);
     }
 
     if (profile) {
@@ -47,7 +47,7 @@ export default async function ProtectedLayout({
     }
   }
 
-  //server sign-out
+  //sign-out
   async function signOutAction(_formData: FormData): Promise<void> {
     "use server";
     const server = await createClient();
@@ -56,7 +56,7 @@ export default async function ProtectedLayout({
 
   return (
     <main className="min-h-screen flex flex-col bg-background text-foreground">
-      <nav className="w-full border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 sticky top-0 z-50">
+      <nav className="w-full border-b border-white/10 bg-transparent backdrop-blur-md supports-[backdrop-filter]:bg-background/10 sticky top-0 z-50">
         {/* Outer container */}
         <div className="max-w-6xl mx-auto flex justify-between items-center px-6 h-16">
           {/* LEFT SECTION pinned to the very left */}
@@ -66,10 +66,10 @@ export default async function ProtectedLayout({
             </Link>
 
             {/* Buttons instead of links */}
-            <Button asChild variant="ghost" className="h-9 px-3">
+            <Button asChild variant="ghost" className="h-9 px-3 rounded-xl">
               <Link href="/groups">Groups</Link>
             </Button>
-            <Button asChild variant="ghost" className="h-9 px-3">
+            <Button asChild variant="ghost" className="h-9 px-3 rounded-xl">
               <Link href="/sessions">Sessions</Link>
             </Button>
           </div>
@@ -81,7 +81,7 @@ export default async function ProtectedLayout({
               <DropdownMenuTrigger asChild>
                 {/* centered circular button */}
                 <button
-                  className="w-9 h-9 rounded-full border border-border hover:bg-muted transition grid place-items-center"
+                  className="w-10 h-10 rounded-full border border-white/10 hover:bg-white/10 transition grid place-items-center"
                   aria-label="Open profile menu"
                 >
                   {avatarUrl ? (
@@ -103,7 +103,7 @@ export default async function ProtectedLayout({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
-                  <Link href="/account">Profile</Link>
+                  <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
 
                 {/* fully clickable Change Theme row */}
@@ -131,7 +131,10 @@ export default async function ProtectedLayout({
 
       {/* PAGE CONTENT */}
       <div className="flex-1 w-full flex flex-col items-center">
-        <div className="max-w-6xl w-full px-5 py-10">{children}</div>
+        <div className="max-w-6xl w-full px-5 py-10">
+          <ProgressOverview />
+          {children}
+        </div>
       </div>
     </main>
   );
