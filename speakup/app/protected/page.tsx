@@ -52,7 +52,7 @@ export default async function Dashboard() {
             <Button variant="outline">Join Group</Button>
           </Link>
           <Link href="/groups/new">
-            <Button>Create Group</Button>
+            <Button data-cy="createGroupButton">Create Group</Button>
           </Link>
         </div>
       </div>
