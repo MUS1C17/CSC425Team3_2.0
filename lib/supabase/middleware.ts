@@ -2,20 +2,24 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
-export async function updateSession(request: NextRequest) 
-{
+export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
-  if (!hasEnvVars)
-  {
+  // Skip auth middleware for API routes
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    return supabaseResponse;
+  }
+
+  //If the env vars are not set, skip middleware check
+  if (!hasEnvVars) {
     return supabaseResponse;
   }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
         getAll() {
@@ -36,22 +40,19 @@ export async function updateSession(request: NextRequest)
     },
   );
 
-const { data } = await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if
-  (
+  //redirecting to login
+  if (
     request.nextUrl.pathname !== "/" &&
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
-  )
-  {
-    //no user, potentially respond by redirecting the user to the login page
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
   }
-
   return supabaseResponse;
 }

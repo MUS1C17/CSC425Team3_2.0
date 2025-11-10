@@ -32,7 +32,9 @@ export default async function Dashboard() {
   ]).catch(() => [{ data: [] }, { data: [] }, { data: [] }]) as any;
 
   const {data: { user }, } = await supabase.auth.getUser();
-  const { data: profile } = await supabase.from("users").select("first_name").eq("id", user?.id).maybeSingle();
+  if (!user) redirect("/auth/login");
+  const profileResp = await supabase.from("users").select("first_name").eq("id", user.id).maybeSingle();
+  const profile = (profileResp.data ?? null) as { first_name?: string | null } | null;
   const firstName = profile?.first_name ?? "there";
 
   return (

@@ -31,15 +31,19 @@ export default async function ProtectedLayout({
   let fullName: string | null = null;
 
   if (user) {
-    const { data: profile, error: profileError } = await supabase
+    const profileResp = await supabase
       .from("users")
       .select("avatar_path, first_name, last_name")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profileError) {
-      console.log("ERROR OCCURED: " + profileError.message)
+    if (profileResp.error) {
+      console.log("ERROR OCCURED: " + profileResp.error.message);
     }
+
+    const profile = (profileResp.data ?? null) as
+      | { avatar_path?: string | null; first_name?: string | null; last_name?: string | null }
+      | null;
 
     if (profile) {
       avatarUrl = profile.avatar_path ?? null;

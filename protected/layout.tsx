@@ -30,16 +30,16 @@ export default async function ProtectedLayout({
   let fullName: string | null = null;
 
   if (user) {
-    const { data: profile } = await supabase
+    const profileResp = await supabase
       .from("users")
       .select("avatar_path, first_name, last_name")
       .eq("id", user.id)
       .maybeSingle();
 
+    const profile = (profileResp.data ?? null) as { avatar_path?: string | null; first_name?: string | null; last_name?: string | null } | null;
+
     avatarUrl = profile?.avatar_path ?? null;
-    fullName =
-      [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
-      "there";
+    fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "there";
   }
 
   async function signOutAction(_formData: FormData): Promise<void> {

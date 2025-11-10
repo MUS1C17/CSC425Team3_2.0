@@ -26,18 +26,20 @@ export default async function ProfileMenu() {
   }
 
   // Try to get profile/initials/avatar from your public.users table
-  const { data: profile } = await supabase
+  const profileResp = await supabase
     .from("users")
     .select("id, first_name, last_name, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
+
+  const profile = (profileResp.data ?? null) as UserRow | null;
 
   const first = (profile?.first_name ?? "").trim();
   const last = (profile?.last_name ?? "").trim();
   const initials =
     (first?.[0] ?? "").toUpperCase() + (last?.[0] ?? "").toUpperCase();
 
-  const avatarUrl = (profile as UserRow | null)?.avatar_url ?? null;
+  const avatarUrl = profile?.avatar_url ?? null;
 
   // Simple sign-out action that posts to your auth handler route (adjust if needed)
   async function signOutAction() {

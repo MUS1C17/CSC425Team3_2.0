@@ -1,101 +1,140 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-const signUpSchema = z
-  .object({
-    first_name: z.string().min(1, "First name is required"),
-    last_name: z.string().min(1, "Last name is required"),
-    email: z.string().email("Please enter a valid email"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string(),
-  })
-  .refine(
-    (data) => data.password === data.confirmPassword,
-    {
-      message: "Passwords do not match",
-      path: ["confirmPassword"],
-    }
-  );
-
-type SignUpFormData = z.infer<typeof signUpSchema>;
-
-export function SignUpForm({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
-{
-  const { register, handleSubmit, formState } = useForm<SignUpFormData>(
-    {
-      resolver: zodResolver(signUpSchema),
-    }
-  );
-  const { errors } = formState;
-  const router = useRouter();
+export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const onSubmit = async (data: SignUpFormData) =>
-  {
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const supabase = createClient();
     setIsLoading(true);
     setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const client = createClient();
-      const { error } = await client.auth.signUp(
-        {
-          email: data.email,
-          password: data.password,
-          options: { data: { first_name: data.first_name, last_name: data.last_name } },
-        } as any
-      );
-      if (error) {
-        throw new Error(error.message);
-      }
-      // On success, direct user to a sign-up success page
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/protected`,
+          data: {
+            first_name: firstName?.trim() || null,
+            last_name: lastName?.trim() || null,
+          },
+        },
+      });
+      if (error) throw error;
       router.push("/auth/sign-up-success");
-    } catch (err: any) {
-      setError(err?.message ?? "Unknown error");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+      console.log(error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div {...props} className={className}>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div>
-          <label htmlFor="first_name">First name</label>
-          <input id="first_name" {...register("first_name")} />
-          <p>{errors.first_name?.message}</p>
-        </div>
-        <div>
-          <label htmlFor="last_name">Last name</label>
-          <input id="last_name" {...register("last_name")} />
-          <p>{errors.last_name?.message}</p>
-        </div>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input id="email" {...register("email")} />
-          <p>{errors.email?.message}</p>
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input id="password" type="password" {...register("password")} />
-          <p>{errors.password?.message}</p>
-        </div>
-        <div>
-          <label htmlFor="confirmPassword">Repeat password</label>
-          <input id="confirmPassword" type="password" {...register("confirmPassword")} />
-          <p>{errors.confirmPassword?.message}</p>
-        </div>
-
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? "Creating account..." : "Sign up"}
-        </button>
-      </form>
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Sign up</CardTitle>
+          <CardDescription>Create a new account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSignUp}>
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="first-name">First Name</Label>
+                <Input
+                  id="first-name"
+                  type="text"
+                  placeholder="John"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="last-name">Last Name</Label>
+                <Input
+                  id="last-name"
+                  type="text"
+                  placeholder="Doe"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center">
+                  <Label htmlFor="password">Password</Label>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center">
+                  <Label htmlFor="confirm-password">Repeat Password</Label>
+                </div>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+              {error && <p className="text-sm text-red-500">{error}</p>}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Creating an account..." : "Sign up"}
+              </Button>
+            </div>
+            <div className="mt-4 text-center text-sm">
+              Already have an account?{" "}
+              <Link href="/auth/login" className="underline underline-offset-4">
+                Login
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

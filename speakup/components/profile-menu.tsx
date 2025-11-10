@@ -27,12 +27,14 @@ export default async function ProfileMenu() {
         redirect("/auth/login");
     }
 
-    //We Try to get profile/initials/avatar from public.users table
-    const { data: profile } = await supabase
+    // We try to get profile/initials/avatar from public.users table
+    const profileResp = await supabase
         .from("users")
         .select("id, first_name, last_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
+
+    const profile = (profileResp.data ?? null) as UserRow | null;
 
     const first = (profile?.first_name ?? "").trim();
     const last = (profile?.last_name ?? "").trim();
