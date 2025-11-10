@@ -46,8 +46,8 @@ describe('Auth API', () => {
       .send({ email: 'new@example.com', password: 'secret' })
       .set('Content-Type', 'application/json')
 
-    expect(res.status).toBe(200)
-    expect(res.body.user).toEqual({ id: 'uid999', email: 'new@example.com' })
+    expect(res.status).equal(200)
+    expect(res.body.user).deep.equal({ id: 'uid999', email: 'new@example.com' })
   })
 
   test('signup duplicate user returns 400', async () => {
@@ -56,8 +56,8 @@ describe('Auth API', () => {
       .send({ email: 'exists@example.com', password: 'secret' })
       .set('Content-Type', 'application/json')
 
-    expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/already/i)
+    expect(res.status).equal(400)
+    expect(res.body.error).match(/already/i)
   })
 
   test('login success', async () => {
@@ -66,8 +66,8 @@ describe('Auth API', () => {
       .send({ email: 'user@example.com', password: 'correct' })
       .set('Content-Type', 'application/json')
 
-    expect(res.status).toBe(200)
-    expect(res.body.user).toEqual({ id: 'uid123', email: 'user@example.com' })
+    expect(res.status).equal(200)
+    expect(res.body.user).deep.equal({ id: 'uid123', email: 'user@example.com' })
   })
 
   test('login invalid credentials returns 401', async () => {
@@ -76,13 +76,13 @@ describe('Auth API', () => {
       .send({ email: 'user@example.com', password: 'wrong' })
       .set('Content-Type', 'application/json')
 
-    expect(res.status).toBe(401)
-    expect(res.body.error).toMatch(/invalid/i)
+    expect(res.status).equal(401)
+    expect(res.body.error).match(/invalid/i)
   })
 
   test('logout success', async () => {
     const res = await request(server).post('/api/auth/logout')
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ ok: true })
+    expect(res.status).equal(200)
+    expect(res.body).deep.equal({ ok: true })
   })
 })
