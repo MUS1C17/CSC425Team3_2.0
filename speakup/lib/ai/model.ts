@@ -1,56 +1,107 @@
 import { GoogleGenAI } from "@google/genai";
 import { captureServerException } from "../observability/sentry";
 
-const FALLBACK_CHALLENGE =
-  "Practice Question: Summarize the main takeaway from today's session in two sentences.";
+const DEFAULT_RESPONSE = 
+  "Quick reflection: What was the most important concept covered in today's discussion?";
 
-function normalizeResponseText(response: any): string {
-  if (!response) return "";
-  if (typeof response.text === "function") {
+/**
+ * Extracts text content from various Google AI response formats
+ * Handles multiple response structures to ensure compatibility
+ */
+function extractTextFromResponse(apiResponse: unknown): string {
+  if (!apiResponse) return "";
+  
+  // Handle function-based text extraction
+  if (typeof (apiResponse as { text?: () => string }).text === "function") {
     try {
-      return response.text();
+      return (apiResponse as { text: () => string }).text();
     } catch {
-      //ignored
+      // Silent fail, continue to other methods
     }
   }
-  if (typeof response.text === "string") return response.text;
-  if (response.response?.text) return response.response.text;
-  const contentParts = response.response?.candidates?.[0]?.content?.parts;
-  if (Array.isArray(contentParts)) {
-    return contentParts
-      .map((p: any) => {
-        if (typeof p?.text === "string") return p.text;
-        if (typeof p === "string") return p;
+  
+  // Direct text property
+  if (typeof (apiResponse as { text?: string }).text === "string") {
+    return (apiResponse as { text: string }).text;
+  }
+  
+  // Nested response.text structure
+  const responseText = (apiResponse as { response?: { text?: string } }).response?.text;
+  if (responseText) {
+    return responseText;
+  }
+  
+  // Complex candidates structure with parts
+  const candidateContent = (apiResponse as { 
+    response?: { 
+      candidates?: Array<{ 
+        content?: { 
+          parts?: Array<{ text?: string } | string> 
+        } 
+      }> 
+    } 
+  }).response?.candidates?.[0]?.content?.parts;
+  
+  if (Array.isArray(candidateContent)) {
+    return candidateContent
+      .map((part) => {
+        if (typeof (part as { text?: string })?.text === "string") {
+          return (part as { text: string }).text;
+        }
+        if (typeof part === "string") return part;
         return "";
       })
       .filter(Boolean)
       .join("\n")
       .trim();
   }
-  if (typeof response.candidates?.[0]?.content?.parts?.[0]?.text === "string") {
-    return response.candidates[0].content.parts[0].text;
+  
+  // Direct candidates path
+  const directText = (apiResponse as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>
+      }
+    }>
+  }).candidates?.[0]?.content?.parts?.[0]?.text;
+  
+  if (typeof directText === "string") {
+    return directText;
   }
+  
   return "";
 }
 
-export async function generateModelText(prompt: string, fallback = FALLBACK_CHALLENGE) {
-  const key = process.env.GOOGLE_GENAI_API_KEY;
-  const useMock = process.env.USE_MOCK_AI === "true" || process.env.NODE_ENV === "test";
+/**
+ * Generates AI text using Google's Gemini model
+ * Falls back to provided text if API is unavailable or configured for testing
+ */
+export async function generateModelText(inputPrompt: string, fallbackText = DEFAULT_RESPONSE) {
+  const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+  const shouldUseMock = process.env.USE_MOCK_AI === "true" || process.env.NODE_ENV === "test";
 
-  if (!key || useMock) {
-    return fallback;
+  // Return fallback for testing or when API key is missing
+  if (!apiKey || shouldUseMock) {
+    return fallbackText;
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: key });
-    const response = await ai.models.generateContent({
-      model: process.env.GOOGLE_GENAI_MODEL || "gemini-3-pro-preview",
-      contents: [{ role: "user", parts: [{ text: prompt }]}],
+    const client = new GoogleGenAI({ apiKey });
+    const modelResponse = await client.models.generateContent({
+      model: process.env.GOOGLE_GENAI_MODEL || "gemini-1.5-flash",
+      contents: [{ 
+        role: "user", 
+        parts: [{ text: inputPrompt }]
+      }],
     });
-    const normalized = normalizeResponseText(response) || fallback;
-    return normalized;
+    
+    const extractedText = extractTextFromResponse(modelResponse) || fallbackText;
+    return extractedText;
   } catch (error) {
-    captureServerException(error, { promptKind: "generic" });
-    return fallback;
+    captureServerException(error, { 
+      context: "ai-text-generation",
+      promptLength: inputPrompt.length 
+    });
+    return fallbackText;
   }
 }

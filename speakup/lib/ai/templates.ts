@@ -1,62 +1,77 @@
 type TemplateTokens = Record<string, string>;
 
 const challengeTemplate = `
-You are an AI teaching assistant who writes one focused practice question for a live Q&A session.
-Session: "{{sessionName}}"
-Context from previous questions and answers (keep it concise): 
+You are a learning assistant that creates focused practice questions based on ongoing classroom discussions.
+
+Session Context: "{{sessionName}}"
+Recent Q&A Activity: 
 {{qaContext}}
 
-Produce a JSON object with this shape:
+Your task: Generate a single, well-crafted practice question as a JSON object with this exact structure:
+
 {
-  "question": "<one clear question for the learner>",
-  "idealAnswer": "<a short, correct answer>",
-  "whyItMatters": "<why this question is useful for the learner>",
+  "question": "<clear, specific question that tests understanding>",
+  "idealAnswer": "<concise model response>", 
+  "whyItMatters": "<brief explanation of the learning value>",
   "difficulty": "easy|medium|hard",
-  "coachTip": "<one actionable tip to think about before answering>"
+  "coachTip": "<one helpful hint for approaching the question>"
 }
 
-Rules:
-- Stay concise and on-topic.
-- Do not mention that you are an AI unless explicitly asked.
-- If there is little context, generate a fundamental but thoughtful question for the topic.
+Guidelines:
+- Keep questions focused and actionable
+- Make them relevant to the session content
+- Avoid mentioning AI unless specifically relevant
+- When context is limited, create foundational questions about core concepts
+- Ensure the question encourages critical thinking
 `.trim();
 
 const feedbackTemplate = `
-You are a teaching coach. Check the learner's reply to a practice question.
+You are an educational coach providing constructive feedback on student responses.
 
-Question:
+Practice Question:
 {{question}}
 
-Expected/ideal answer:
+Model Answer:
 {{idealAnswer}}
 
-Learner answer:
+Student Response:
 {{userAnswer}}
 
-Return JSON with:
+Evaluate the response and return JSON in this format:
 {
   "verdict": "correct|almost|incorrect",
-  "strength": "<what they did well>",
-  "gap": "<what is missing or wrong>",
-  "improve": "<one practical suggestion to improve the answer>"
+  "strength": "<what the student did well>",
+  "gap": "<what needs improvement>", 
+  "improve": "<specific, actionable suggestion>"
 }
 
-Be encouraging but direct. Keep responses short.
+Assessment approach:
+- Be supportive yet honest in your evaluation
+- Focus on understanding rather than perfect wording
+- Provide specific, actionable improvement suggestions
+- Keep feedback concise and encouraging
 `.trim();
 
-export function renderTemplate(template: string, tokens: TemplateTokens) {
-  return Object.entries(tokens).reduce((acc, [key, value]) => {
-    const safeValue = value || "N/A";
-    return acc.replaceAll(`{{${key}}}`, safeValue);
+export function renderTemplate(template: string, replacements: TemplateTokens) {
+  return Object.entries(replacements).reduce((processedTemplate, [placeholder, value]) => {
+    const safeValue = value || "Not provided";
+    return processedTemplate.replaceAll(`{{${placeholder}}}`, safeValue);
   }, template);
 }
 
-export function buildChallengePrompt(sessionName: string, qaContext: string) {
-  return renderTemplate(challengeTemplate, { sessionName, qaContext });
+export function buildChallengePrompt(sessionTitle: string, contextualInfo: string) {
+  return renderTemplate(challengeTemplate, { 
+    sessionName: sessionTitle, 
+    qaContext: contextualInfo 
+  });
 }
 
-export function buildFeedbackPrompt(question: string, idealAnswer: string, userAnswer: string) {
-  return renderTemplate(feedbackTemplate, { question, idealAnswer, userAnswer });
+export function buildFeedbackPrompt(questionText: string, expectedAnswer: string, studentAnswer: string) {
+  return renderTemplate(feedbackTemplate, { 
+    question: questionText, 
+    idealAnswer: expectedAnswer, 
+    userAnswer: studentAnswer 
+  });
 }
 
 export const templates = {

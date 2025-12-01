@@ -317,19 +317,22 @@ export default function QnAClient({
   membershipNotice,
   aiHistory,
 }: QnAClientProps) {
+  // Filter questions by status
   const unanswered = useMemo(() => questions.filter((q) => q.answers.length === 0), [questions]);
   const answered = useMemo(() => questions.filter((q) => q.answers.length > 0), [questions]);
 
+  // State management for AI interaction flows
   const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiChallenge, setAiChallenge] = useState<ChallengeView | null>(null);
-  const [aiSubmissionId, setAiSubmissionId] = useState<string | null>(null);
-  const [aiAnswer, setAiAnswer] = useState("");
-  const [aiFeedback, setAiFeedback] = useState<FeedbackView | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiHistoryState, setAiHistoryState] = useState(aiHistory ?? []);
+  const [currentChallenge, setCurrentChallenge] = useState<ChallengeView | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [userResponse, setUserResponse] = useState("");
+  const [evaluationResult, setEvaluationResult] = useState<FeedbackView | null>(null);
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [challengeHistory, setChallengeHistory] = useState(aiHistory ?? []);
 
-  const offlineChallenge: ChallengeView = {
+  // Fallback challenge when API is unavailable
+  const defaultChallenge: ChallengeView = {
     question: `What is one key takeaway from ${sessionName}?`,
     idealAnswer: "State the core idea in one sentence.",
     whyItMatters: "Checks that you captured the headline concept.",
@@ -337,12 +340,12 @@ export default function QnAClient({
     coachTip: "Lead with the main idea, then add one supporting detail.",
   };
 
-  const canRequestAi = !permissions.banMessage;
+  const canUseAi = !permissions.banMessage;
 
   const requestChallenge = async () => {
-    setAiError(null);
-    setAiFeedback(null);
-    setAiLoading(true);
+    setErrorState(null);
+    setEvaluationResult(null);
+    setIsProcessing(true);
 
     try {
       const resp = await fetch("/ai/generateChallenge", {
@@ -355,38 +358,38 @@ export default function QnAClient({
         throw new Error("Could not fetch AI challenge");
       }
 
-      const jr = await resp.json();
-      setAiSubmissionId(jr.submissionId);
-      setAiChallenge(jr.challenge ?? offlineChallenge);
+      const responseData = await resp.json();
+      setSubmissionId(responseData.submissionId);
+      setCurrentChallenge(responseData.challenge ?? defaultChallenge);
       setAiModalOpen(true);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "AI is unavailable, showing an offline prompt.";
-      setAiError(message);
-      setAiSubmissionId(`offline-${Date.now()}`);
-      setAiChallenge(offlineChallenge);
+      setErrorState(message);
+      setSubmissionId(`offline-${Date.now()}`);
+      setCurrentChallenge(defaultChallenge);
       setAiModalOpen(true);
     } finally {
-      setAiLoading(false);
+      setIsProcessing(false);
     }
   };
 
   const submitForFeedback = async () => {
-    if (!aiChallenge) return;
-    if (!aiAnswer.trim()) {
-      setAiError("Add an answer before submitting.");
+    if (!currentChallenge) return;
+    if (!userResponse.trim()) {
+      setErrorState("Add an answer before submitting.");
       return;
     }
-    setAiError(null);
-    setAiLoading(true);
+    setErrorState(null);
+    setIsProcessing(true);
 
     try {
       const resp = await fetch("/ai/submitForFeedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          submission_id: aiSubmissionId,
-          user_answer: aiAnswer,
+          submission_id: submissionId,
+          user_answer: userResponse,
         }),
       });
 
@@ -394,15 +397,15 @@ export default function QnAClient({
         throw new Error("AI feedback failed");
       }
 
-      const jr = await resp.json();
-      const feedback: FeedbackView = jr.feedback ?? null;
-      setAiFeedback(feedback);
+      const responseData = await resp.json();
+      const feedback: FeedbackView = responseData.feedback ?? null;
+      setEvaluationResult(feedback);
 
-      setAiHistoryState((prev) => [
+      setChallengeHistory((prev) => [
         {
-          submission_id: aiSubmissionId ?? `local-${Date.now()}`,
-          response: JSON.stringify(aiChallenge),
-          user_answer: aiAnswer,
+          submission_id: submissionId ?? `local-${Date.now()}`,
+          response: JSON.stringify(currentChallenge),
+          user_answer: userResponse,
           ai_feedback: feedback ? JSON.stringify(feedback) : null,
           created_at: new Date().toISOString(),
           prompt: templates.challengeTemplate,
@@ -416,14 +419,14 @@ export default function QnAClient({
         gap: "Tighten your reasoning with one detail.",
         improve: "Add why this matters to the session.",
       };
-      setAiFeedback(fallback);
-      setAiError(
+      setEvaluationResult(fallback);
+      setErrorState(
         err instanceof Error
           ? `${err.message}. Using offline feedback.`
           : "Using offline feedback.",
       );
     } finally {
-      setAiLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -467,10 +470,10 @@ export default function QnAClient({
               variant="outline"
               className="rounded-xl bg-purple-600 text-white border-purple-500 hover:bg-purple-700"
               onClick={requestChallenge}
-              disabled={!canRequestAi || aiLoading}
+              disabled={!canUseAi || isProcessing}
               data-cy="ai-challenge-button"
             >
-              {aiLoading ? "Thinking..." : "AI Challenge"}
+              {isProcessing ? "Thinking..." : "AI Challenge"}
             </Button>
           </div>
         </div>
@@ -618,21 +621,21 @@ export default function QnAClient({
                 Template ready
               </Badge>
             </div>
-            <AiHistoryList history={aiHistoryState} />
+            <AiHistoryList history={challengeHistory} />
           </CardContent>
         </Card>
       </div>
 
       <AiModal
         open={aiModalOpen}
-        challenge={aiChallenge}
-        answer={aiAnswer}
-        onChangeAnswer={setAiAnswer}
+        challenge={currentChallenge}
+        answer={userResponse}
+        onChangeAnswer={setUserResponse}
         onSubmit={submitForFeedback}
         onClose={() => setAiModalOpen(false)}
-        feedback={aiFeedback}
-        loading={aiLoading}
-        error={aiError}
+        feedback={evaluationResult}
+        loading={isProcessing}
+        error={errorState}
       />
     </div>
   );

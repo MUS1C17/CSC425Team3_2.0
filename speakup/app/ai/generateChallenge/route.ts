@@ -25,42 +25,48 @@ type QuestionPreview = {
   description: string | null;
 };
 
-function formatContext(questions: QuestionPreview[], answers: Record<number, string[]>) {
+function buildQaContextSummary(questions: QuestionPreview[], answerMap: Record<number, string[]>) {
   if (questions.length === 0) {
-    return "No prior Q&A. Generate a foundational practice question for the session topic.";
+    return "No previous questions available. Please create a foundational question related to the session topic.";
   }
 
   return questions
-    .map((q) => {
-      const answerText = answers[q.id]?.[0];
-      const summary = [q.title, q.description].filter(Boolean).join(" - ");
-      return answerText ? `Q: ${summary}\nA: ${answerText}` : `Q: ${summary}\nA: Unanswered`;
+    .map((question) => {
+      const responseText = answerMap[question.id]?.[0];
+      const questionSummary = [question.title, question.description]
+        .filter(Boolean)
+        .join(" - ");
+      
+      return responseText 
+        ? `Q: ${questionSummary}\nA: ${responseText}` 
+        : `Q: ${questionSummary}\nA: No responses yet`;
     })
     .join("\n---\n");
 }
 
-function coerceChallenge(raw: string, fallbackQuestion: string): ChallengePayload {
+function parseAiChallengeResponse(rawResponse: string, defaultQuestion: string): ChallengePayload {
   try {
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.question) {
+    const parsedData = JSON.parse(rawResponse);
+    if (parsedData && parsedData.question) {
       return {
-        question: parsed.question,
-        idealAnswer: parsed.idealAnswer || "Keep your answer concise.",
-        whyItMatters: parsed.whyItMatters || "Reinforces the core concept.",
-        difficulty: parsed.difficulty || "medium",
-        coachTip: parsed.coachTip || "State your reasoning clearly.",
+        question: parsedData.question,
+        idealAnswer: parsedData.idealAnswer || "Provide a clear, focused response.",
+        whyItMatters: parsedData.whyItMatters || "This helps reinforce key concepts.",
+        difficulty: parsedData.difficulty || "medium",
+        coachTip: parsedData.coachTip || "Think step by step and be specific.",
       };
     }
   } catch {
-    // ignoring parse errors
+    // JSON parsing failed, use fallback
   }
 
+  // Fallback structure
   return {
-    question: fallbackQuestion,
-    idealAnswer: "Highlight the most important concept discussed so far.",
-    whyItMatters: "This checks you truly grasp the main takeaway.",
+    question: defaultQuestion,
+    idealAnswer: "Focus on the central concept and provide supporting reasoning.",
+    whyItMatters: "This question tests your understanding of the core material.",
     difficulty: "medium",
-    coachTip: "Lead with the core idea, then add one supporting detail.",
+    coachTip: "Start with the main idea, then add one supporting detail.",
   };
 }
 
@@ -203,8 +209,8 @@ export async function POST(req: NextRequest) {
       answersByQuestion[a.question_id].push(a.answer);
     });
 
-    const qaContext = formatContext((questionRows as QuestionPreview[]) ?? [], answersByQuestion);
-    const prompt = buildChallengePrompt(session.name, qaContext);
+    const qaContextSummary = buildQaContextSummary((questionRows as QuestionPreview[]) ?? [], answersByQuestion);
+    const prompt = buildChallengePrompt(session.name, qaContextSummary);
     const modelText = await generateModelText(
       `${prompt}\n\nRespond only with the JSON object described above.`,
       JSON.stringify({
@@ -224,14 +230,17 @@ export async function POST(req: NextRequest) {
         userId: actorId,
         prompt,
         response: modelText,
-        model: process.env.GOOGLE_GENAI_MODEL || "gemini-3-pro-preview",
+        model: process.env.GOOGLE_GENAI_MODEL || "gemini-1.5-flash",
         promptTemplate: templates.challengeTemplate,
       });
     } catch (err) {
       captureServerException(err, { stage: "logAiPrompt" });
     }
 
-    const challenge = coerceChallenge(modelText, qaContext);
+    const challenge = parseAiChallengeResponse(
+      modelText, 
+      `What is one key concept learners should remember from ${session.name}?`
+    );
 
     return NextResponse.json({
       submissionId,

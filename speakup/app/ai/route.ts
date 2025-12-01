@@ -2,36 +2,61 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateModelText } from "@/lib/ai/model";
 import { captureServerException } from "@/lib/observability/sentry";
 
+/**
+ * Simple AI answer endpoint for direct question-answer interactions
+ * Used by legacy components that need basic AI responses
+ */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { title, description } = body as {
+    const requestBody = await req.json();
+    const { title, description } = requestBody as {
       title?: string;
       description?: string | null;
     };
 
+    // Validate input
     if (!title && !description) {
-      return NextResponse.json({ error: "Missing question content" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Question content is required" }, 
+        { status: 400 }
+      );
     }
 
-    const prompt = `
-            You are an assistant answering questions in a class Q&A app.
-            Give a clear, helpful answer. Do not mention that you are AI unless asked.
-            Question title:
-            ${title ?? ""}
-            Question details:
-            ${description ?? ""}
-            Return a concise answer, a few short paragraphs max.
-                `.trim();
+    // Build context-aware prompt
+    const questionPrompt = `
+You are a helpful teaching assistant providing clear answers to student questions.
 
-    const answerText = await generateModelText(prompt, "No answer generated.");
+Question: ${title ?? ""}
+${description ? `Details: ${description}` : ""}
 
-    return NextResponse.json({ answer: answerText });
+Provide a concise, educational response that:
+- Directly addresses the question
+- Uses clear, accessible language
+- Includes relevant examples when helpful
+- Encourages further learning
+
+Keep your response focused and practical.
+    `.trim();
+
+    const generatedAnswer = await generateModelText(
+      questionPrompt,
+      "I understand your question. Let me provide a clear explanation of the key concepts involved."
+    );
+
+    return NextResponse.json({ 
+      answer: generatedAnswer,
+      timestamp: new Date().toISOString()
+    });
+    
   } catch (error) {
-    captureServerException(error, { route: "ai/route" });
+    captureServerException(error, { 
+      endpoint: "ai/route",
+      context: "direct-answer-generation"
+    });
+    
     return NextResponse.json(
-      { error: "Failed to generate AI answer" },
-      { status: 500 },
+      { error: "Unable to generate response at this time" },
+      { status: 500 }
     );
   }
 }

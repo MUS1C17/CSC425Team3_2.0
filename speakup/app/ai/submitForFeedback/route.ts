@@ -5,26 +5,27 @@ import { generateModelText } from "@/lib/ai/model";
 import { captureServerException } from "@/lib/observability/sentry";
 import { getSubmission, logAiFeedback } from "@/lib/ai/persistence";
 
-function coerceFeedback(raw: string): FeedbackPayload {
+function parseAiFeedbackResponse(rawFeedback: string): FeedbackPayload {
   try {
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.verdict) {
+    const parsedFeedback = JSON.parse(rawFeedback);
+    if (parsedFeedback && parsedFeedback.verdict) {
       return {
-        verdict: parsed.verdict,
-        strength: parsed.strength || "You touched on the core idea.",
-        gap: parsed.gap || "Clarify the reasoning.",
-        improve: parsed.improve || "Add one more supporting detail.",
+        verdict: parsedFeedback.verdict,
+        strength: parsedFeedback.strength || "You addressed the main topic.",
+        gap: parsedFeedback.gap || "Consider adding more detail.",
+        improve: parsedFeedback.improve || "Expand on your reasoning with examples.",
       };
     }
   } catch {
-    //ignore parse errors
+    // JSON parsing failed
   }
 
+  // Default feedback structure
   return {
     verdict: "almost",
-    strength: "You referenced the main idea.",
-    gap: "It needs more precision to be fully correct.",
-    improve: "Add a concise reason or an example.",
+    strength: "You demonstrated understanding of the core concept.",
+    gap: "Your response could be more comprehensive.",
+    improve: "Try including specific examples or additional context.",
   };
 }
 
@@ -91,12 +92,12 @@ export async function POST(req: NextRequest) {
       }),
     );
 
-    const feedback = coerceFeedback(aiText);
+    const feedbackResponse = parseAiFeedbackResponse(aiText);
     try {
       await logAiFeedback({
         submissionId,
         userAnswer,
-        aiFeedback: JSON.stringify(feedback),
+        aiFeedback: JSON.stringify(feedbackResponse),
       });
     } catch (err) {
       captureServerException(err, { stage: "logAiFeedback" });
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       submissionId,
-      feedback,
+      feedback: feedbackResponse,
       promptTemplate: templates.feedbackTemplate,
     });
   } catch (error) {
