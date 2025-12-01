@@ -1,15 +1,16 @@
-//client side component
+// app/groups/[groupId]/sessions/[sessionId]/qna/QnAClient.tsx
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import Image from "next/image";
+
 import AskQuestionForm from "@/components/ask-question-form";
 import AnswerQuestionForm from "@/components/answer-question-form";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import SplitText from "@/components/ui/splitText";
 
-//component specific types
+// component specific types
 type Attachment = {
   id: string;
   storage_bucket: string;
@@ -26,6 +27,7 @@ type AnswerWithMeta = {
   id: number;
   question_id: number;
   author_id: string;
+  is_anonymous?: boolean;
   authorName: string;
   answer: string;
   created_at: string;
@@ -36,6 +38,7 @@ type QuestionWithMeta = {
   id: number;
   session_id: number;
   author_id: string;
+  is_anonymous?: boolean;
   authorName: string;
   title: string;
   description: string | null;
@@ -71,7 +74,7 @@ function AttachmentPreview({ attachment }: { attachment: Attachment }) {
           alt={attachment.mime_type ?? "attachment"}
           width={1200} // large intrinsic size (any big placeholder)
           height={800}
-          className="block h-auto w-auto max-h-[180px] max-w-[300px] object-contain border rounded-lg"
+          className="block h-auto w-auto max-h-[180px] max-w-[300px] rounded-lg border border-border object-contain"
           quality={90}
           unoptimized
         />
@@ -80,7 +83,7 @@ function AttachmentPreview({ attachment }: { attachment: Attachment }) {
   }
 
   return (
-    <Button asChild variant="outline" className="justify-start h-9">
+    <Button asChild variant="outline" className="h-9 justify-start">
       <a href={attachment.publicUrl ?? "#"} target="_blank" rel="noopener noreferrer">
         {attachment.mime_type ?? "Download attachment"}
       </a>
@@ -96,157 +99,254 @@ export default function QnAClient({
   permissions,
   membershipNotice,
 }: QnAClientProps) {
-  //flitering by answered and unanswered
+  const [aiQuestionId, setAiQuestionId] = useState<number | null>(null);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiLoadingId, setAiLoadingId] = useState<number | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // filtering by answered and unanswered
   const unanswered = useMemo(() => questions.filter((q) => q.answers.length === 0), [questions]);
   const answered = useMemo(() => questions.filter((q) => q.answers.length > 0), [questions]);
 
+  async function handleAskAi(question: QuestionWithMeta) {
+    try {
+      setAiLoadingId(question.id);
+      setAiAnswer(null);
+      setAiQuestionId(question.id);
+
+      const res = await fetch("/api/ai-answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: question.title,
+          description: question.description,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Request failed");
+      }
+
+      const data = await res.json();
+      setAiAnswer(data.answer ?? "No answer generated.");
+      setAiModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      setAiAnswer("Sorry, the AI could not generate an answer right now.");
+      setAiModalOpen(true);
+    } finally {
+      setAiLoadingId(null);
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1>
-            <SplitText
-              text={sessionName}
-              className="text-2xl font-bold text-purple-500"
-              delay={100}
-              duration={0.6}
-              ease="power3.out"
-              splitType="chars"
-              from={{ opacity: 0, y: 40 }}
-              to={{ opacity: 1, y: 0 }}
-              threshold={0.1}
-              rootMargin="-100px"
-              textAlign="center"
-            />
-          </h1>
-          {membershipNotice ? (
-            <p className="text-sm text-slate-500 mt-1">{membershipNotice}</p>
-          ) : null}
-        </div>
-
-        <AskQuestionForm
-          sessionId={sessionId}
-          groupId={groupId}
-          canAsk={permissions.canAsk}
-          banMessage={permissions.banMessage ?? membershipNotice}
-        />
-      </div>
-
-      {questions.length === 0 ? (
-        <p className="text-slate-500">No questions yet.</p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-medium text-slate-600">
-                Unanswered ({unanswered.length})
-              </h2>
+    <>
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pb-12 pt-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <SplitText
+                text={sessionName}
+                className="text-3xl font-semibold tracking-tight text-foreground"
+                delay={80}
+                duration={0.5}
+                ease="power3.out"
+                splitType="chars"
+                from={{ opacity: 0, y: 24 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.1}
+                rootMargin="-80px"
+                textAlign="left"
+              />
+              {membershipNotice ? (
+                <p className="text-sm text-muted-foreground">{membershipNotice}</p>
+              ) : null}
             </div>
-            <ul className="space-y-4">
-              {unanswered.map((q) => (
-                <li key={q.id} className="border rounded-lg p-4">
-                  <p className="text-xs text-slate-500">{q.authorName} asked</p>
-                  <h3 className="font-semibold text-purple-500">{q.title}</h3>
-                  {q.description ? <p className="text-sm text-slate-600">{q.description}</p> : null}
 
-                  {q.attachments.length > 0 ? (
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {q.attachments.map((a) => (
-                        <AttachmentPreview key={a.id} attachment={a} />
-                      ))}
-                    </div>
-                  ) : null}
+            <AskQuestionForm
+              sessionId={sessionId}
+              groupId={groupId}
+              canAsk={permissions.canAsk}
+              banMessage={permissions.banMessage ?? membershipNotice}
+            />
+          </div>
 
-                  <div className="flex items-center gap-3 text-sm mt-3">
-                    <AnswerQuestionForm
-                      questionId={q.id}
-                      sessionId={sessionId}
-                      groupId={groupId}
-                      canAnswer={permissions.canAnswer}
-                      banMessage={permissions.banMessage ?? membershipNotice}
-                    />
-                  </div>
+          {questions.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
+              No questions yet. Be the first to ask.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {/* Unanswered */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Unanswered ({unanswered.length})
+                  </h2>
+                </div>
+                <ul className="space-y-4">
+                  {unanswered.map((q) => (
+                    <li
+                      key={q.id}
+                      className="rounded-xl border border-border bg-card p-5 shadow-sm"
+                    >
+                      <p className="text-xs text-muted-foreground">{q.authorName} asked</p>
+                      <h3 className="mt-1 text-lg font-semibold text-foreground">{q.title}</h3>
+                      {q.description ? (
+                        <p className="mt-1 text-sm text-muted-foreground">{q.description}</p>
+                      ) : null}
 
-                  <div className="text-xs text-slate-400 mt-2">
-                    Created{" "}
-                    {new Date(q.created_at).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+                      {q.attachments.length > 0 ? (
+                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {q.attachments.map((a) => (
+                            <AttachmentPreview key={a.id} attachment={a} />
+                          ))}
+                        </div>
+                      ) : null}
 
-          <section>
-            <h2 className="text-sm font-medium text-slate-600 mb-2">
-              Answered ({answered.length})
-            </h2>
-            <ul className="space-y-4">
-              {answered.map((q) => (
-                <li key={q.id} className="border rounded-lg p-4 space-y-3">
-                  <div>
-                    <p className="text-xs text-slate-500">{q.authorName} asked</p>
-                    <h3 className="font-semibold text-purple-500">{q.title}</h3>
-                    {q.description ? (
-                      <p className="text-sm text-slate-600">{q.description}</p>
-                    ) : null}
-                    {q.attachments.length > 0 ? (
-                      <div className="mt-2 grid grid-cols-3 gap-2">
-                        {q.attachments.map((a) => (
-                          <AttachmentPreview key={a.id} attachment={a} />
-                        ))}
+                      <div className="mt-4 flex items-center gap-3 text-sm">
+                        <AnswerQuestionForm
+                          questionId={q.id}
+                          sessionId={sessionId}
+                          groupId={groupId}
+                          canAnswer={permissions.canAnswer}
+                          banMessage={permissions.banMessage ?? membershipNotice}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAskAi(q)}
+                          disabled={aiLoadingId === q.id}
+                        >
+                          {aiLoadingId === q.id ? "Asking AI..." : "Let AI answer"}
+                        </Button>
                       </div>
-                    ) : null}
-                  </div>
 
-                  {q.answers.map((answer) => (
-                    <div key={answer.id} className="bg-slate-50 border rounded-lg p-3 space-y-2">
-                      <div className="text-xs text-slate-500">
-                        {answer.authorName} answered •{" "}
-                        {new Date(answer.created_at).toLocaleString("en-US", {
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        Created{" "}
+                        {new Date(q.created_at).toLocaleString("en-US", {
                           year: "numeric",
                           month: "long",
                           day: "numeric",
                         })}
                       </div>
-                      <p className="text-slate-600">{answer.answer}</p>
-                      {answer.attachments.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2">
-                          {answer.attachments.map((a) => (
-                            <AttachmentPreview key={a.id} attachment={a} />
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
+                    </li>
                   ))}
+                </ul>
+              </section>
 
-                  <div className="flex items-center gap-3 text-sm">
-                    <AnswerQuestionForm
-                      questionId={q.id}
-                      sessionId={sessionId}
-                      groupId={groupId}
-                      canAnswer={permissions.canAnswer}
-                      banMessage={permissions.banMessage ?? membershipNotice}
-                    />
-                  </div>
+              {/* Answered */}
+              <section className="space-y-3">
+                <h2 className="text-sm font-semibold text-foreground">
+                  Answered ({answered.length})
+                </h2>
+                <ul className="space-y-4">
+                  {answered.map((q) => (
+                    <li
+                      key={q.id}
+                      className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm"
+                    >
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">{q.authorName} asked</p>
+                        <h3 className="text-lg font-semibold text-foreground">{q.title}</h3>
+                        {q.description ? (
+                          <p className="text-sm text-muted-foreground">{q.description}</p>
+                        ) : null}
+                        {q.attachments.length > 0 ? (
+                          <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {q.attachments.map((a) => (
+                              <AttachmentPreview key={a.id} attachment={a} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
 
-                  <div className="text-xs text-slate-400">
-                    Created{" "}
-                    {new Date(q.created_at).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+                      {q.answers.map((answer) => (
+                        <div
+                          key={answer.id}
+                          className="space-y-2 rounded-lg border border-border bg-muted p-3"
+                        >
+                          <div className="text-xs text-muted-foreground">
+                            {answer.authorName} answered •{" "}
+                            {new Date(answer.created_at).toLocaleString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </div>
+                          <p className="text-sm text-foreground">{answer.answer}</p>
+                          {answer.attachments.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {answer.attachments.map((a) => (
+                                <AttachmentPreview key={a.id} attachment={a} />
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+
+                      <div className="flex items-center gap-3 text-sm">
+                        <AnswerQuestionForm
+                          questionId={q.id}
+                          sessionId={sessionId}
+                          groupId={groupId}
+                          canAnswer={permissions.canAnswer}
+                          banMessage={permissions.banMessage ?? membershipNotice}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAskAi(q)}
+                          disabled={aiLoadingId === q.id}
+                        >
+                          {aiLoadingId === q.id ? "Asking AI..." : "Let AI answer"}
+                        </Button>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        Created{" "}
+                        {new Date(q.created_at).toLocaleString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* AI answer modal */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-xl rounded-lg bg-card p-4 shadow-lg">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">AI answer</h2>
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(false)}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto whitespace-pre-wrap text-sm">
+              {aiAnswer ?? "Waiting for answer..."}
+            </div>
+            {aiQuestionId !== null && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                This answer is generated for question ID {aiQuestionId}.
+              </p>
+            )}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
