@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 
 import AskQuestionForm from "@/components/ask-question-form";
@@ -10,8 +10,7 @@ import AnswerQuestionForm from "@/components/answer-question-form";
 import { Button } from "@/components/ui/button";
 import SplitText from "@/components/ui/splitText";
 
-// component specific types
-type Attachment = {
+interface Attachment {
   id: string;
   storage_bucket: string;
   storage_path: string;
@@ -21,9 +20,9 @@ type Attachment = {
   uploaded_by: string;
   created_at: string;
   publicUrl?: string;
-};
+}
 
-type AnswerWithMeta = {
+interface AnswerWithMeta {
   id: number;
   question_id: number;
   author_id: string;
@@ -32,9 +31,9 @@ type AnswerWithMeta = {
   answer: string;
   created_at: string;
   attachments: Attachment[];
-};
+}
 
-type QuestionWithMeta = {
+interface QuestionWithMeta {
   id: number;
   session_id: number;
   author_id: string;
@@ -45,34 +44,34 @@ type QuestionWithMeta = {
   created_at: string;
   attachments: Attachment[];
   answers: AnswerWithMeta[];
-};
+}
 
-type Permissions = {
+interface Permissions {
   canAsk: boolean;
   canAnswer: boolean;
   isSessionMember: boolean;
   banMessage: string | null;
   banUntil: string | null;
   requiresLogin: boolean;
-};
+}
 
-type QnAClientProps = {
+interface QnAClientProps {
   sessionId: number;
   groupId: number;
   sessionName: string;
   questions: QuestionWithMeta[];
   permissions: Permissions;
   membershipNotice: string | null;
-};
+}
 
-function AttachmentPreview({ attachment }: { attachment: Attachment }) {
+const AttachmentPreview: React.FC<{ attachment: Attachment }> = ({ attachment }) => {
   if (attachment.mime_type?.startsWith("image/") && attachment.publicUrl) {
     return (
       <div className="inline-flex items-center justify-center">
         <Image
-          src={attachment.publicUrl!}
+          src={attachment.publicUrl}
           alt={attachment.mime_type ?? "attachment"}
-          width={1200} // large intrinsic size (any big placeholder)
+          width={1200}
           height={800}
           className="block h-auto w-auto max-h-[180px] max-w-[300px] rounded-lg border border-border object-contain"
           quality={90}
@@ -89,26 +88,25 @@ function AttachmentPreview({ attachment }: { attachment: Attachment }) {
       </a>
     </Button>
   );
-}
+};
 
-export default function QnAClient({
+export const QnAClient: React.FC<QnAClientProps> = ({
   sessionId,
   groupId,
   sessionName,
   questions,
   permissions,
   membershipNotice,
-}: QnAClientProps) {
+}) => {
   const [aiQuestionId, setAiQuestionId] = useState<number | null>(null);
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiLoadingId, setAiLoadingId] = useState<number | null>(null);
   const [aiModalOpen, setAiModalOpen] = useState(false);
 
-  // filtering by answered and unanswered
   const unanswered = useMemo(() => questions.filter((q) => q.answers.length === 0), [questions]);
   const answered = useMemo(() => questions.filter((q) => q.answers.length > 0), [questions]);
 
-  async function handleAskAi(question: QuestionWithMeta) {
+  const handleAskAi = useCallback(async (question: QuestionWithMeta) => {
     try {
       setAiLoadingId(question.id);
       setAiAnswer(null);
@@ -117,15 +115,10 @@ export default function QnAClient({
       const res = await fetch("/api/ai-answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: question.title,
-          description: question.description,
-        }),
+        body: JSON.stringify({ title: question.title, description: question.description }),
       });
 
-      if (!res.ok) {
-        throw new Error("Request failed");
-      }
+      if (!res.ok) throw new Error("Request failed");
 
       const data = await res.json();
       setAiAnswer(data.answer ?? "No answer generated.");
@@ -137,7 +130,7 @@ export default function QnAClient({
     } finally {
       setAiLoadingId(null);
     }
-  }
+  }, []);
 
   return (
     <>
@@ -158,9 +151,7 @@ export default function QnAClient({
                 rootMargin="-80px"
                 textAlign="left"
               />
-              {membershipNotice ? (
-                <p className="text-sm text-muted-foreground">{membershipNotice}</p>
-              ) : null}
+              {membershipNotice ? <p className="text-sm text-muted-foreground">{membershipNotice}</p> : null}
             </div>
 
             <AskQuestionForm
@@ -177,24 +168,16 @@ export default function QnAClient({
             </div>
           ) : (
             <div className="flex flex-col gap-8">
-              {/* Unanswered */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    Unanswered ({unanswered.length})
-                  </h2>
+                  <h2 className="text-sm font-semibold text-foreground">Unanswered ({unanswered.length})</h2>
                 </div>
                 <ul className="space-y-4">
                   {unanswered.map((q) => (
-                    <li
-                      key={q.id}
-                      className="rounded-xl border border-border bg-card p-5 shadow-sm"
-                    >
+                    <li key={q.id} className="rounded-xl border border-border bg-card p-5 shadow-sm">
                       <p className="text-xs text-muted-foreground">{q.authorName} asked</p>
                       <h3 className="mt-1 text-lg font-semibold text-foreground">{q.title}</h3>
-                      {q.description ? (
-                        <p className="mt-1 text-sm text-muted-foreground">{q.description}</p>
-                      ) : null}
+                      {q.description ? <p className="mt-1 text-sm text-muted-foreground">{q.description}</p> : null}
 
                       {q.attachments.length > 0 ? (
                         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -212,47 +195,28 @@ export default function QnAClient({
                           canAnswer={permissions.canAnswer}
                           banMessage={permissions.banMessage ?? membershipNotice}
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAskAi(q)}
-                          disabled={aiLoadingId === q.id}
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleAskAi(q)} disabled={aiLoadingId === q.id}>
                           {aiLoadingId === q.id ? "Asking AI..." : "Let AI answer"}
                         </Button>
                       </div>
 
                       <div className="mt-3 text-xs text-muted-foreground">
-                        Created{" "}
-                        {new Date(q.created_at).toLocaleString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
+                        Created {new Date(q.created_at).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                       </div>
                     </li>
                   ))}
                 </ul>
               </section>
 
-              {/* Answered */}
               <section className="space-y-3">
-                <h2 className="text-sm font-semibold text-foreground">
-                  Answered ({answered.length})
-                </h2>
+                <h2 className="text-sm font-semibold text-foreground">Answered ({answered.length})</h2>
                 <ul className="space-y-4">
                   {answered.map((q) => (
-                    <li
-                      key={q.id}
-                      className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm"
-                    >
+                    <li key={q.id} className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">{q.authorName} asked</p>
                         <h3 className="text-lg font-semibold text-foreground">{q.title}</h3>
-                        {q.description ? (
-                          <p className="text-sm text-muted-foreground">{q.description}</p>
-                        ) : null}
+                        {q.description ? <p className="text-sm text-muted-foreground">{q.description}</p> : null}
                         {q.attachments.length > 0 ? (
                           <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
                             {q.attachments.map((a) => (
@@ -263,17 +227,9 @@ export default function QnAClient({
                       </div>
 
                       {q.answers.map((answer) => (
-                        <div
-                          key={answer.id}
-                          className="space-y-2 rounded-lg border border-border bg-muted p-3"
-                        >
+                        <div key={answer.id} className="space-y-2 rounded-lg border border-border bg-muted p-3">
                           <div className="text-xs text-muted-foreground">
-                            {answer.authorName} answered •{" "}
-                            {new Date(answer.created_at).toLocaleString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
+                            {answer.authorName} answered • {new Date(answer.created_at).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                           </div>
                           <p className="text-sm text-foreground">{answer.answer}</p>
                           {answer.attachments.length > 0 ? (
@@ -294,25 +250,12 @@ export default function QnAClient({
                           canAnswer={permissions.canAnswer}
                           banMessage={permissions.banMessage ?? membershipNotice}
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAskAi(q)}
-                          disabled={aiLoadingId === q.id}
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleAskAi(q)} disabled={aiLoadingId === q.id}>
                           {aiLoadingId === q.id ? "Asking AI..." : "Let AI answer"}
                         </Button>
                       </div>
 
-                      <div className="text-xs text-muted-foreground">
-                        Created{" "}
-                        {new Date(q.created_at).toLocaleString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </div>
+                      <div className="text-xs text-muted-foreground">Created {new Date(q.created_at).toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
                     </li>
                   ))}
                 </ul>
@@ -322,31 +265,22 @@ export default function QnAClient({
         </div>
       </main>
 
-      {/* AI answer modal */}
       {aiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-xl rounded-lg bg-card p-4 shadow-lg">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-lg font-semibold">AI answer</h2>
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(false)}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
+              <button type="button" onClick={() => setAiModalOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">
                 Close
               </button>
             </div>
-            <div className="max-h-80 overflow-y-auto whitespace-pre-wrap text-sm">
-              {aiAnswer ?? "Waiting for answer..."}
-            </div>
-            {aiQuestionId !== null && (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                This answer is generated for question ID {aiQuestionId}.
-              </p>
-            )}
+            <div className="max-h-80 overflow-y-auto whitespace-pre-wrap text-sm">{aiAnswer ?? "Waiting for answer..."}</div>
+            {aiQuestionId !== null && <p className="mt-2 text-[11px] text-muted-foreground">This answer is generated for question ID {aiQuestionId}.</p>}
           </div>
         </div>
       )}
     </>
   );
-}
+};
+
+export default QnAClient;
