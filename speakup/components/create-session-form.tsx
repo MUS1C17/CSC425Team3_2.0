@@ -40,7 +40,7 @@ export default function CreateSessionForm({ groupId }: CreateSessionFormProps) {
 
     try {
       const payload = {
-        group_id: groupId, // revert to original, do not force Number()
+        group_id: groupId, //revert to original, do not force Number()
         name: name.trim(),
         description: description.trim() ? description.trim() : null,
         start_time: startTime || null,

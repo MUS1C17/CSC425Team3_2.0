@@ -28,7 +28,7 @@ export default function SessionsPage() {
   useEffect(() => {
     async function fetchAvatarAndGroups() {
       const supabase = createClient();
-      // Fetch avatar and name
+      //Fetch avatar and name
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return;
       const { data: profile } = await supabase
@@ -40,14 +40,14 @@ export default function SessionsPage() {
       setFullName(
         [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "there"
       );
-      // Fetch groups
+      //Fetch groups
       const { data: groupData } = await supabase
         .from("groups")
         .select("id, name, created_at")
         .order("created_at", { ascending: false });
       if (groupData && groupData.length > 0) {
         setGroups(groupData);
-        setSelectedGroupId(groupData[0].id); // Preselect newest group
+        setSelectedGroupId(groupData[0].id); //Preselect newest group
       }
       setLoadingGroups(false);
     }

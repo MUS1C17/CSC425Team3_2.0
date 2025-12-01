@@ -37,11 +37,11 @@ export default function SessionsPage() {
         .select("role, session_id, sessions(id, name, created_at, group_id, deleted_at)")
         .eq("user_id", userData.user.id);
       if (nameFilter) {
-        // Only show sessions where the name starts with the filter (case-insensitive)
+        //Only show sessions where the name starts with the filter (case-insensitive)
         query = query.ilike("sessions.name", `${nameFilter}%`);
       }
       if (dateFilter) {
-        // Filter sessions created on the selected date (regardless of time)
+        //Filter sessions created on the selected date (regardless of time)
         const start = new Date(dateFilter);
         const end = new Date(dateFilter);
         end.setDate(end.getDate() + 1);

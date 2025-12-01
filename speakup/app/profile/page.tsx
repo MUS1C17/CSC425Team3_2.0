@@ -21,7 +21,7 @@ interface User {
     const [emailChange, setEmail] = useState("");
     const [avatarPathChange, setAvatarPath] = useState("");
 
-    // Fetch user on mount
+    //Fetch user on mount
     useEffect(() => {
         async function fetchUser() {
         const res = await fetch("/api/user");
@@ -39,13 +39,13 @@ interface User {
         fetchUser();
     }, []);
 
-    // PATCH update
+    //PATCH update
     const updateUser = async () => {
         if (!user) return;
 
         try {
         const res = await fetch("/api/user", {
-            method: "PATCH", // <-- use PATCH
+            method: "PATCH", //<-- use PATCH
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
             first_name: fiNameChange,

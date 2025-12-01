@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`AI routes generateChallenge returns challenge and logs prompt/response 1`] = `
+{
+  "challenge": Any<Object>,
+  "promptTemplate": Any<String>,
+  "submissionId": Any<String>,
+}
+`;

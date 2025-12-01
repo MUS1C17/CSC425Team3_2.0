@@ -5,6 +5,8 @@ import { URL } from 'node:url'
 import { POST as loginHandler } from '@/app/api/auth/login/route'
 import { POST as signupHandler } from '@/app/api/auth/signup/route'
 import { POST as logoutHandler } from '@/app/api/auth/logout/route'
+import { POST as aiGenerateHandler } from '@/app/ai/generateChallenge/route'
+import { POST as aiFeedbackHandler } from '@/app/ai/submitForFeedback/route'
 
 type Handler = (req: Request) => Promise<Response>
 
@@ -46,6 +48,8 @@ const routes: Record<string, Record<string, Handler>> = {
   '/api/auth/login': { POST: loginHandler },
   '/api/auth/signup': { POST: signupHandler },
   '/api/auth/logout': { POST: logoutHandler },
+  '/ai/generateChallenge': { POST: aiGenerateHandler },
+  '/ai/submitForFeedback': { POST: aiFeedbackHandler },
 }
 
 export function createTestServer() {
