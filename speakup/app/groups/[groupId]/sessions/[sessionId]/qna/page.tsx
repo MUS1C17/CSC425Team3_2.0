@@ -8,6 +8,7 @@ import { Question } from "@/lib/types/question";
 import { Answer } from "@/lib/types/answer";
 import { QuestionAttachment } from "@/lib/types/QuestionAttachment";
 import { AnswerAttachment } from "@/lib/types/AnswerAttachment";
+import { listAiSubmissions } from "@/lib/ai/persistence";
 
 //defining my component specific types
 type SessionMemberRow = {
@@ -66,7 +67,29 @@ export default async function QuestionsAndAnswers({
   }
 
   if (!session || session.group_id !== parsedGroupId || session.deleted_at) {
-   notFound();
+    const membershipNotice = "Session not found or inactive.";
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-100">
+        <div className="w-full max-w-4xl h-[85vh] overflow-y-auto rounded-2xl shadow-lg bg-white p-6">
+          <QnAClient
+            sessionId={parsedSessionId}
+            groupId={parsedGroupId}
+            sessionName={session?.name ?? "Session unavailable"}
+            questions={[]}
+            permissions={{
+              canAsk: false,
+              canAnswer: false,
+              isSessionMember: false,
+              banMessage: membershipNotice,
+              banUntil: null,
+              requiresLogin: !user,
+            }}
+            membershipNotice={membershipNotice}
+            aiHistory={[]}
+          />
+        </div>
+      </div>
+    );
   }
 
   let sessionMember: SessionMemberRow | null = null;
@@ -296,6 +319,8 @@ export default async function QuestionsAndAnswers({
     ? "Sign in to participate in the Q&A."
     : (banMessage ?? (!isSessionMember ? "You must join this session to ask questions." : null));
 
+  const aiHistory = await listAiSubmissions(parsedSessionId, user?.id ?? null);
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-100">
       <div className="w-full max-w-4xl h-[85vh] overflow-y-auto rounded-2xl shadow-lg bg-white p-6">
@@ -313,6 +338,7 @@ export default async function QuestionsAndAnswers({
             requiresLogin: !user,
           }}
           membershipNotice={membershipNotice}
+          aiHistory={aiHistory}
         />
       </div>
     </div>

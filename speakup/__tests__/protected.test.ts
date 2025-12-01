@@ -26,35 +26,31 @@ jest.mock('@/lib/supabase/server', () => {
         })),
       },
       from: jest.fn((table: string) => {
-        //Chain helper for list queries (select -> order -> limit -> Promise)
-        const listChain = {
-          order: jest.fn(() => ({
-            limit: jest.fn(async () => {
-              const map: Record<string, any[]> = {
-                groups: mockState.groups,
-                sessions: mockState.sessions,
-                questions: mockState.questions,
-              }
-              return { data: map[table] ?? [], error: null }
-            }),
-          })),
+        const map: Record<string, any[]> = {
+          groups: mockState.groups,
+          sessions: mockState.sessions,
+          questions: mockState.questions,
         }
 
-        //Chain helper for single row query (users table)
-        const singleChain = {
-          eq: jest.fn(() => ({
-            maybeSingle: jest.fn(async () => ({
-              data: table === 'users' ? { first_name: mockState.firstName } : null,
-              error: null,
-            })),
+        const builder: any = {
+          eq: jest.fn(() => builder),
+          is: jest.fn(() => builder),
+          in: jest.fn(async () => ({ data: map[table] ?? [], error: null })),
+          order: jest.fn(() => ({
+            limit: jest.fn(async () => ({ data: map[table] ?? [], error: null })),
           })),
+          limit: jest.fn(async () => ({ data: map[table] ?? [], error: null })),
+          maybeSingle: jest.fn(async () => ({
+            data: table === 'users' ? { first_name: mockState.firstName } : map[table]?.[0] ?? null,
+            error: null,
+          })),
+          select: jest.fn(() => builder),
+          then: (resolve: any) => resolve({ data: map[table] ?? [], error: null }),
+          catch: () => builder,
         }
 
         return {
-          select: jest.fn(() => ({
-            ...listChain,
-            ...singleChain,
-          })),
+          select: jest.fn(() => builder),
         }
       }),
     }

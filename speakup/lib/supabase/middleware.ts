@@ -7,7 +7,7 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  // Skip auth middleware for API routes
+  //Skip auth middleware for API routes
   if (request.nextUrl.pathname.startsWith("/api")) {
     return supabaseResponse;
   }

@@ -28,7 +28,7 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const updates: any = {};
 
-    // Only include fields that are not undefined
+    //Only include fields that are not undefined
     if (body.first_name !== undefined) updates.first_name = body.first_name;
     if (body.last_name !== undefined) updates.last_name = body.last_name;
     if (body.email !== undefined) updates.email = body.email;

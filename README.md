@@ -49,6 +49,13 @@ See `speakup/docs/auth-flow.md` for a diagram and description of:
 - Password reset and update flow
 - Required environment variables
 
+## AI Study Coach (Q&A)
+
+- `/ai/generateChallenge` returns a modal-ready practice question and logs prompt/response into the `ai_submissions` table (created on first use).
+- `/ai/submitForFeedback` records the learner answer, stores AI feedback, and returns a structured verdict for the UI.
+- The session Q&A page surfaces a saved history of AI prompts and feedback; e2e coverage lives in `cypress/e2e/ai-challenge.cy.js`.
+- Sentry captures FE/BE errors; hit `/api/observability/sentry-test?error=2` to fire the test alert.
+
 ## Testing (Story 1.7)
 
 - Install deps in `speakup`: `cd speakup && npm install`
