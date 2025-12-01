@@ -42,27 +42,16 @@ const ThemeSwitcher = ({ asChild = false, className, children }: ThemeSwitcherPr
 
   return (
     <DropdownMenu>
-      {/* If asChild=true, we use the provided children as the full-width trigger */}
-      <DropdownMenuTrigger asChild={asChild}>
-        {asChild ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className={cn(
-              "w-full justify-between hover:bg-accent hover:text-accent-foreground",
-              className
-            )}
-          >
-            <span>{children ?? "Change theme"}</span>
-            {CurrentIcon}
-          </Button>
-        ) : (
-          <Button variant="ghost" size="sm" className={className}>
-            {CurrentIcon}
-          </Button>
-        )}
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={className}
+        >
+          {CurrentIcon}
+        </Button>
       </DropdownMenuTrigger>
-
       <DropdownMenuContent className="w-content" align="start">
         <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v)}>
           <DropdownMenuRadioItem className="flex gap-2" value="light">
